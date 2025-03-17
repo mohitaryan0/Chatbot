@@ -582,7 +582,7 @@ export async function POST(request: Request) {
     const response = await model.generateContent(prompt);
     
     // Extract the generated content
-    let generatedContent = response?.response?.text() || "<p>Error generating content</p>";
+    const generatedContent = response?.response?.text() || "<p>Error generating content</p>";
     
     // Enhance the content with proper styling
     const enhancedHTML = enhanceWithStyling(generatedContent, isLandingPage);
