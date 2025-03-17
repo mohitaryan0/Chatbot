@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import auth from '../lib/extAuth';
+import { auth } from '../lib/extAuth';
 
 export default function Navbar() {
   const [user, setUser] = useState<any>(null);
@@ -15,30 +15,54 @@ export default function Navbar() {
     const checkUser = async () => {
       setIsLoading(true);
       try {
-        const { user } = await auth.getCurrentUser();
-        setUser(user);
+        const { data, error } = await auth.getCurrentUser();
+        console.log("Auth check result:", { data, error });
+        if (data && data.user) {
+          setUser(data.user);
+        } else {
+          console.log("No authenticated user found");
+          setUser(null);
+        }
       } catch (error) {
         console.error('Error fetching user:', error);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
     };
 
     checkUser();
+    
+    // Set up an auth state change listener
+    const handleAuthChange = () => {
+      checkUser();
+    };
+    
+    // Check authentication state periodically
+    const intervalId = setInterval(checkUser, 5000);
+    
+    // Clean up on unmount
+    return () => {
+      clearInterval(intervalId);
+    };
   }, []);
 
   const handleLogout = async () => {
     try {
-      await auth.logout();
+      console.log('Attempting to logout...');
+      const result = await auth.logout();
+      console.log('Logout result:', result);
       setUser(null);
-      router.push('/auth/login');
+      
+      // Force a hard redirect to the login page instead of using Next.js router
+      window.location.href = '/auth/login';
     } catch (error) {
       console.error('Error logging out:', error);
     }
   };
 
   return (
-    <nav className="bg-gray-800 py-4 px-6 shadow-md">
+    <nav className="bg-gray-800 py-4 px-6 shadow-md fixed top-0 left-0 right-0 z-10">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
         <Link href="/" className="text-xl font-bold text-white">
           AI Code Generator

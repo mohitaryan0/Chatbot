@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import auth from '../lib/extAuth';
+import { auth } from '../lib/extAuth';
 
 type ProtectedRouteProps = {
   children: React.ReactNode;
@@ -18,23 +18,24 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       setIsLoading(true);
       try {
         const authStatus = await auth.isAuthenticated();
+        console.log('Authentication status:', authStatus);
         setIsAuthenticated(authStatus);
         
         if (!authStatus) {
-          // Redirect to login if not authenticated
-          router.push('/auth/login');
+          // Redirect to login if not authenticated using window.location for a hard redirect
+          window.location.href = '/auth/login';
         }
       } catch (error) {
         console.error('Authentication check failed:', error);
         // Redirect to login on error
-        router.push('/auth/login');
+        window.location.href = '/auth/login';
       } finally {
         setIsLoading(false);
       }
     };
 
     checkAuth();
-  }, [router]);
+  }, []);
 
   // Show loading state while checking authentication
   if (isLoading) {

@@ -563,17 +563,48 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
-    // Check if the request is for a landing page
-    const isLandingPage = message.toLowerCase().includes('landing page') || 
-                          message.toLowerCase().includes('homepage') ||
-                          message.toLowerCase().includes('sales page') ||
-                          message.toLowerCase().includes('marketing page');
+    // Check if the API key is missing
+    if (!process.env.GOOGLE_API_KEY) {
+      console.error('Google API key is missing');
+      return NextResponse.json({ error: 'API key configuration error' }, { status: 500 });
+    }
+
+    // Check if the request is for a landing page using a more generalized approach
+    const isLandingPage = (message: string): boolean => {
+      const landingPageIndicators = [
+        'landing page', 'homepage', 'sales page', 'marketing page', 
+        'website home', 'front page', 'main page'
+      ];
+      
+      // Generic detection based on purpose rather than specific keywords
+      if (landingPageIndicators.some(indicator => message.toLowerCase().includes(indicator))) {
+        return true;
+      }
+      
+      // Intent-based detection (works for prompts like "airline site", "create a page for X company")
+      if (message.toLowerCase().match(/create a (page|site|website) for .+ (company|business|brand|airline|hotel)/i)) {
+        return true;
+      }
+      
+      // Detect specific industry sites that should be treated as landing pages
+      const industries = ['airline', 'hotel', 'restaurant', 'retail', 'ecommerce', 'real estate', 'travel'];
+      if (industries.some(industry => message.toLowerCase().includes(industry)) && 
+          message.toLowerCase().match(/(site|page|website|create|generate|design)/i)) {
+        return true;
+      }
+      
+      return false;
+    };
+
+    console.log('Generating content for prompt:', message);
+    console.log('Is landing page:', isLandingPage(message));
+    console.log('API Key exists:', !!process.env.GOOGLE_API_KEY);
 
     // Generate content using Google's Generative AI
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     
     // Use optimized prompt for landing pages or standard prompt for other content
-    const prompt = isLandingPage 
+    const prompt = isLandingPage(message) 
       ? getLandingPagePrompt(message)
       : `Generate valid HTML and CSS for: ${message}. 
          Make it responsive, visually appealing, and include modern design elements. 
@@ -584,12 +615,19 @@ export async function POST(request: Request) {
     // Extract the generated content
     const generatedContent = response?.response?.text() || "<p>Error generating content</p>";
     
+    // Log successful generation
+    console.log('Content generated successfully, length:', generatedContent.length);
+    
     // Enhance the content with proper styling
-    const enhancedHTML = enhanceWithStyling(generatedContent, isLandingPage);
+    const enhancedHTML = enhanceWithStyling(generatedContent, isLandingPage(message));
     
     return NextResponse.json({ html: enhancedHTML });
   } catch (error) {
     console.error('Error generating code:', error);
-    return NextResponse.json({ error: 'Failed to generate code' }, { status: 500 });
+    // Return more detailed error information
+    return NextResponse.json({ 
+      error: 'Failed to generate code',
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
