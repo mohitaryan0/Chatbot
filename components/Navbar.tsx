@@ -1,9 +1,10 @@
-"use client";
+'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { auth } from '../lib/extAuth';
+import { Subscription } from '@supabase/supabase-js';
 
 export default function Navbar() {
   const [user, setUser] = useState<any>(null);
@@ -33,19 +34,17 @@ export default function Navbar() {
 
     checkUser();
     
-    // Set up an auth state change listener
-    const handleAuthChange = () => {
+    // Listen for auth state changes
+    const { data: { subscription } } = auth.onAuthStateChange((event: string, session: any) => {
+      console.log('Auth state changed:', event);
       checkUser();
-    };
-    
-    // Check authentication state periodically
-    const intervalId = setInterval(checkUser, 5000);
+    });
     
     // Clean up on unmount
     return () => {
-      clearInterval(intervalId);
+      subscription.unsubscribe();
     };
-  }, []);
+  }, [router]);
 
   const handleLogout = async () => {
     try {

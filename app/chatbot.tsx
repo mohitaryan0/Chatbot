@@ -1,7 +1,10 @@
-"use client";
+'use client';
 
 import { useState, useRef, useEffect } from "react";
 import { FaCode, FaDesktop, FaCopy, FaDownload } from 'react-icons/fa';
+import { highlight, languages } from 'prismjs/components/prism-core';
+import 'prismjs/components/prism-markup';
+import 'prismjs/themes/prism.css';
 
 export default function Chatbot() {
   const [input, setInput] = useState("");
@@ -22,8 +25,10 @@ export default function Chatbot() {
 
   const handleGenerate = async () => {
     if (!input.trim()) return;
-    
+
     setLoading(true);
+    setGeneratedCode(""); // Clear previous code while generating
+
     try {
       const response = await fetch("/api/generate-code", {
         method: "POST",
@@ -32,10 +37,17 @@ export default function Chatbot() {
       });
 
       const data = await response.json();
-      setGeneratedCode(data.html);
-      setViewMode("code"); // Reset to "code" view after generation
+      
+      if (response.ok) {
+        setGeneratedCode(data.html);
+        setViewMode("code");
+      } else {
+        console.error("Error generating code:", data.details || data.error);
+        setGeneratedCode("<p>Error generating code: " + (data.details || data.error) + "</p>");
+      }
     } catch (error) {
       console.error("Error fetching generated code:", error);
+      setGeneratedCode("<p>Error generating code: Network error</p>");
     } finally {
       setLoading(false);
     }
@@ -62,6 +74,11 @@ export default function Chatbot() {
     URL.revokeObjectURL(url);
   };
 
+  // Format code with Prism.js
+  const formatCode = (code: string) => {
+    return highlight(code, languages.html, 'html');
+  };
+
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col">
       {/* Input Section */}
@@ -80,7 +97,7 @@ export default function Chatbot() {
           />
         </div>
         
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-between">
           <button
             onClick={handleGenerate}
             disabled={loading || !input.trim()}
@@ -101,96 +118,67 @@ export default function Chatbot() {
 
       {/* Output Section */}
       {generatedCode && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
-          {/* Tabs and Actions */}
-          <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-            <div className="flex">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
               <button
-                className={`flex items-center px-4 py-3 text-sm font-medium ${
-                  viewMode === "code" 
-                    ? "border-b-2 border-blue-500 text-blue-600 dark:text-blue-400" 
-                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                }`}
                 onClick={() => setViewMode("code")}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  viewMode === "code"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                }`}
               >
-                <FaCode className="mr-2" />
+                <FaCode className="w-4 h-4" />
                 Code
               </button>
               <button
-                className={`flex items-center px-4 py-3 text-sm font-medium ${
-                  viewMode === "preview" 
-                    ? "border-b-2 border-blue-500 text-blue-600 dark:text-blue-400" 
-                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                }`}
                 onClick={() => setViewMode("preview")}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  viewMode === "preview"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                }`}
               >
-                <FaDesktop className="mr-2" />
+                <FaDesktop className="w-4 h-4" />
                 Preview
               </button>
             </div>
-            
-            <div className="flex items-center mr-4">
+            <div className="flex items-center gap-2">
               <button
                 onClick={handleCopyCode}
-                className="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
-                title="Copy to clipboard"
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg transition-colors hover:bg-gray-300 dark:hover:bg-gray-600"
+                title="Copy code to clipboard"
               >
-                <FaCopy />
-                <span className="sr-only">Copy</span>
+                <FaCopy className="w-4 h-4" />
+                {copied ? "Copied!" : "Copy"}
               </button>
-              {copied && (
-                <span className="text-xs text-green-600 dark:text-green-400 ml-2">
-                  Copied!
-                </span>
-              )}
               <button
                 onClick={handleDownloadCode}
-                className="p-2 ml-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
-                title="Download as HTML file"
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg transition-colors hover:bg-gray-300 dark:hover:bg-gray-600"
+                title="Download code as HTML file"
               >
-                <FaDownload />
-                <span className="sr-only">Download</span>
+                <FaDownload className="w-4 h-4" />
+                Download
               </button>
             </div>
           </div>
 
-          {/* Content Panels */}
-          <div className="relative">
-            {/* Code Panel */}
-            {viewMode === "code" && (
-              <div className="p-4">
-                <pre
-                  ref={codeRef}
-                  className="text-sm bg-gray-50 dark:bg-gray-900 p-4 rounded-md overflow-auto text-gray-800 dark:text-green-400 whitespace-pre-wrap break-words max-h-[500px] scroll-smooth"
-                >
-                  {generatedCode}
-                </pre>
-              </div>
-            )}
-
-            {/* Preview Panel */}
-            {viewMode === "preview" && (
-              <div className="bg-white">
-                <div className="border-b border-gray-200 dark:border-gray-700 p-3 flex items-center bg-gray-100 dark:bg-gray-700">
-                  <div className="flex space-x-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  </div>
-                  <div className="mx-auto text-xs text-gray-500 dark:text-gray-400">Preview</div>
-                </div>
-                <div className="relative pt-[56.25%] bg-white">
-                  <iframe
-                    ref={previewRef}
-                    className="absolute top-0 left-0 w-full h-full border-0 bg-white"
-                    srcDoc={generatedCode}
-                    title="Generated HTML Preview"
-                    sandbox="allow-scripts"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
+          {viewMode === "code" ? (
+            <pre
+              ref={codeRef}
+              className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 overflow-x-auto text-sm"
+              dangerouslySetInnerHTML={{ __html: formatCode(generatedCode) }}
+            />
+          ) : (
+            <iframe
+              ref={previewRef}
+              className="w-full h-[400px] rounded-lg border border-gray-300 dark:border-gray-600"
+              srcDoc={generatedCode}
+              sandbox="allow-scripts"
+              title="Preview"
+            />
+          )}
         </div>
       )}
     </div>
